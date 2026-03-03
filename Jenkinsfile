@@ -18,7 +18,7 @@ pipeline {
 
         stage("Clone Code") {
             steps {
-                git branch: 'main',
+                git branch: 'master',
                 url: 'https://github.com/waseema761/spring3-mvc-maven-xml-hello-world-1.git'
             }
         }
