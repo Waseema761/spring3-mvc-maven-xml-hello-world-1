@@ -50,43 +50,39 @@ pipeline {
         }
 
         stage("Publish Artifact to Nexus") {
-            steps {
-                script {
-                    def pom = readMavenPom file: "pom.xml"
-                    def files = findFiles(glob: "target/*.${pom.packaging}")
-                    def artifactPath = files[0].path
+    steps {
+        script {
 
-                    if (fileExists(artifactPath)) {
+            def artifactPath = "target/ncodeit-hello-world-3.0.war"
 
-                        nexusArtifactUploader(
-                            nexusVersion: NEXUS_VERSION,
-                            protocol: NEXUS_PROTOCOL,
-                            nexusUrl: NEXUS_URL,
-                            groupId: pom.groupId,
-                            version: BUILD_NUMBER,
-                            repository: NEXUS_REPOSITORY,
-                            credentialsId: NEXUS_CREDENTIAL_ID,
-                            artifacts: [
-                                [
-                                    artifactId: pom.artifactId,
-                                    classifier: '',
-                                    file: artifactPath,
-                                    type: pom.packaging
-                                ],
-                                [
-                                    artifactId: pom.artifactId,
-                                    classifier: '',
-                                    file: "pom.xml",
-                                    type: "pom"
-                                ]
-                            ]
-                        )
-                    } else {
-                        error "Artifact not found!"
-                    }
-                }
+            if (fileExists(artifactPath)) {
+
+                nexusArtifactUploader(
+                    nexusVersion: "nexus3",
+                    protocol: "http",
+                    nexusUrl: "localhost:8081",
+                    groupId: "com.ncodeit",
+                    version: BUILD_NUMBER,
+                    repository: "hiring-app",
+                    credentialsId: "nexus-creds",
+                    artifacts: [
+                        [
+                            artifactId: "ncodeit-hello-world",
+                            classifier: '',
+                            file: artifactPath,
+                            type: "war"
+                        ]
+                    ]
+                )
+
+                echo "Artifact Uploaded Successfully!"
+
+            } else {
+                error "WAR file not found!"
             }
         }
+    }
+}
     }
 
     post {
