@@ -1,81 +1,100 @@
 pipeline {
-    agent any 
+    agent any
+
     tools {
-        // Note: this should match with the tool name configured in your jenkins instance (JENKINS_URL/configureTools/)
         maven "MVN_HOME"
-        
     }
-	 environment {
-        // This can be nexus3 or nexus2
+
+    environment {
         NEXUS_VERSION = "nexus3"
-        // This can be http or https
         NEXUS_PROTOCOL = "http"
-        // Where your Nexus is running
-        NEXUS_URL = "3.133.145.136:8081"
-        // Repository where we will upload the artifact
-        NEXUS_REPOSITORY = "devops"
-        // Jenkins credential id to authenticate to Nexus OSS
-        NEXUS_CREDENTIAL_ID = "Nexus_server"
+        NEXUS_URL = "localhost:8081"
+        NEXUS_REPOSITORY = "hiring-app"
+        NEXUS_CREDENTIAL_ID = "nexus-creds"
+        SONAR_HOST_URL = "http://localhost:9000"
     }
+
     stages {
-        stage("clone code") {
+
+        stage("Clone Code") {
             steps {
-                script {
-                    // Let's clone the source
-                    git 'https://github.com/betawins/spring3-mvc-maven-xml-hello-world-1.git';
+                git branch: 'main',
+                url: 'https://github.com/waseema761/spring3-mvc-maven-xml-hello-world-1.git'
+            }
+        }
+
+        stage("Build") {
+            steps {
+                sh "mvn clean package -DskipTests"
+            }
+        }
+
+        stage("SonarQube Analysis") {
+            steps {
+                withSonarQubeEnv('sonarqube') {
+                    sh """
+                       mvn sonar:sonar \
+                       -Dsonar.projectKey=spring-app \
+                       -Dsonar.host.url=${SONAR_HOST_URL}
+                    """
                 }
             }
         }
-        stage("mvn build") {
+
+        stage("Quality Gate") {
             steps {
-                script {
-                    // If you are using Windows then you should use "bat" step
-                    // Since unit testing is out of the scope we skip them
-                    sh 'mvn -Dmaven.test.failure.ignore=true install'
+                timeout(time: 2, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
-        stage("publish to nexus") {
+
+        stage("Publish to Nexus") {
             steps {
                 script {
-                    // Read POM xml file using 'readMavenPom' step , this step 'readMavenPom' is included in: https://plugins.jenkins.io/pipeline-utility-steps
-                    pom = readMavenPom file: "pom.xml";
-                    // Find built artifact under target folder
-                    filesByGlob = findFiles(glob: "target/*.${pom.packaging}");
-                    // Print some info from the artifact found
-                    echo "${filesByGlob[0].name} ${filesByGlob[0].path} ${filesByGlob[0].directory} ${filesByGlob[0].length} ${filesByGlob[0].lastModified}"
-                    // Extract the path from the File found
-                    artifactPath = filesByGlob[0].path;
-                    // Assign to a boolean response verifying If the artifact name exists
-                    artifactExists = fileExists artifactPath;
-                    if(artifactExists) {
-                        echo "*** File: ${artifactPath}, group: ${pom.groupId}, packaging: ${pom.packaging}, version $BUILD_NUMBER}";
+                    def pom = readMavenPom file: "pom.xml"
+                    def filesByGlob = findFiles(glob: "target/*.${pom.packaging}")
+                    def artifactPath = filesByGlob[0].path
+
+                    if (fileExists(artifactPath)) {
+
                         nexusArtifactUploader(
                             nexusVersion: NEXUS_VERSION,
                             protocol: NEXUS_PROTOCOL,
                             nexusUrl: NEXUS_URL,
-			    groupId: pom.groupId,
-                            version: '${BUILD_NUMBER}',
+                            groupId: pom.groupId,
+                            version: BUILD_NUMBER,
                             repository: NEXUS_REPOSITORY,
                             credentialsId: NEXUS_CREDENTIAL_ID,
                             artifacts: [
-                                // Artifact generated such as .jar, .ear and .war files.
-                                [artifactId: pom.artifactId,
-                                classifier: '',
-                                file: artifactPath,
-                                type: pom.packaging],
-                                // Lets upload the pom.xml file for additional information for Transitive dependencies
-                                [artifactId: pom.artifactId,
-                                classifier: '',
-                                file: "pom.xml",
-                                type: "pom"]
+                                [
+                                    artifactId: pom.artifactId,
+                                    classifier: '',
+                                    file: artifactPath,
+                                    type: pom.packaging
+                                ],
+                                [
+                                    artifactId: pom.artifactId,
+                                    classifier: '',
+                                    file: "pom.xml",
+                                    type: "pom"
+                                ]
                             ]
-                        );
+                        )
                     } else {
-                        error "*** File: ${artifactPath}, could not be found";
+                        error "Artifact not found!"
                     }
                 }
             }
+        }
+    }
+
+    post {
+        success {
+            echo "Build Successful and Artifact Uploaded to Nexus hiring-app repository"
+        }
+        failure {
+            echo "Build Failed"
         }
     }
 }
