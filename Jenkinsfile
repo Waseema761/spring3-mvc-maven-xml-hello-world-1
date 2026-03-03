@@ -16,32 +16,32 @@ pipeline {
 
     stages {
 
-        stage("Clone Code") {
+        stage("Checkout Code") {
             steps {
                 git branch: 'master',
-                url: 'https://github.com/waseema761/spring3-mvc-maven-xml-hello-world-1.git'
+                url: 'https://github.com/betavins/spring3-mvc-maven-xml-hello-world-1.git'
             }
         }
 
-        stage("Build") {
+        stage("Build Application") {
             steps {
                 sh "mvn clean package -DskipTests"
             }
         }
 
-        stage("SonarQube Analysis") {
+        stage("SonarQube Code Analysis") {
             steps {
                 withSonarQubeEnv('sonarqube') {
                     sh """
-                       mvn sonar:sonar \
-                       -Dsonar.projectKey=spring-app \
-                       -Dsonar.host.url=${SONAR_HOST_URL}
+                        mvn sonar:sonar \
+                        -Dsonar.projectKey=hiring-app \
+                        -Dsonar.host.url=${SONAR_HOST_URL}
                     """
                 }
             }
         }
 
-        stage("Quality Gate") {
+        stage("Quality Gate Check") {
             steps {
                 timeout(time: 2, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
@@ -49,12 +49,12 @@ pipeline {
             }
         }
 
-        stage("Publish to Nexus") {
+        stage("Publish Artifact to Nexus") {
             steps {
                 script {
                     def pom = readMavenPom file: "pom.xml"
-                    def filesByGlob = findFiles(glob: "target/*.${pom.packaging}")
-                    def artifactPath = filesByGlob[0].path
+                    def files = findFiles(glob: "target/*.${pom.packaging}")
+                    def artifactPath = files[0].path
 
                     if (fileExists(artifactPath)) {
 
@@ -91,10 +91,10 @@ pipeline {
 
     post {
         success {
-            echo "Build Successful and Artifact Uploaded to Nexus hiring-app repository"
+            echo "Pipeline completed successfully. Artifact uploaded to Nexus repository: hiring-app"
         }
         failure {
-            echo "Build Failed"
+            echo "Pipeline failed. Please check logs."
         }
     }
 }
