@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        maven "MVN_HOME"
+        maven "maven"
     }
 
     environment {
@@ -19,7 +19,7 @@ pipeline {
         stage("Checkout Code") {
             steps {
                 git branch: 'master',
-                url: 'https://github.com/betavins/spring3-mvc-maven-xml-hello-world-1.git'
+                url: 'https://github.com/Waseema761/spring3-mvc-maven-xml-hello-world-1.git'
             }
         }
 
@@ -29,7 +29,7 @@ pipeline {
             }
         }
 
-        stage("SonarQube Code Analysis") {
+        stage("SonarQube Analysis") {
             steps {
                 withSonarQubeEnv('sonarqube') {
                     sh """
@@ -91,10 +91,10 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline completed successfully. Artifact uploaded to Nexus repository: hiring-app"
+            echo "Build Successful. Artifact uploaded to Nexus (hiring-app)."
         }
         failure {
-            echo "Pipeline failed. Please check logs."
+            echo "Build Failed. Check logs."
         }
     }
 }
