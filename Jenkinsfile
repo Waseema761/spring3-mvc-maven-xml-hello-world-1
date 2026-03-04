@@ -23,21 +23,27 @@ pipeline {
             }
         }
 
-        stage("Build Application") {
-            steps {
-                sh "mvn clean package -DskipTests"
-            }
-        }
+        stage("Parallel Build and Sonar") {
+            parallel {
 
-        stage("SonarQube Analysis") {
-            steps {
-                withSonarQubeEnv('sonarqube') {
-                    sh """
-                        mvn sonar:sonar \
-                        -Dsonar.projectKey=hiring-app \
-                        -Dsonar.host.url=${SONAR_HOST_URL}
-                    """
+                stage("Build Application") {
+                    steps {
+                        sh "mvn clean package -DskipTests"
+                    }
                 }
+
+                stage("SonarQube Analysis") {
+                    steps {
+                        withSonarQubeEnv('sonarqube') {
+                            sh """
+                                mvn sonar:sonar \
+                                -Dsonar.projectKey=hiring-app \
+                                -Dsonar.host.url=${SONAR_HOST_URL}
+                            """
+                        }
+                    }
+                }
+
             }
         }
 
@@ -50,39 +56,39 @@ pipeline {
         }
 
         stage("Publish Artifact to Nexus") {
-    steps {
-        script {
+            steps {
+                script {
 
-            def artifactPath = "target/ncodeit-hello-world-3.0.war"
+                    def artifactPath = "target/ncodeit-hello-world-3.0.war"
 
-            if (fileExists(artifactPath)) {
+                    if (fileExists(artifactPath)) {
 
-                nexusArtifactUploader(
-                    nexusVersion: "nexus3",
-                    protocol: "http",
-                    nexusUrl: "localhost:8081",
-                    groupId: "com.ncodeit",
-                    version: BUILD_NUMBER,
-                    repository: "hiring-app",
-                    credentialsId: "nexus-creds",
-                    artifacts: [
-                        [
-                            artifactId: "ncodeit-hello-world",
-                            classifier: '',
-                            file: artifactPath,
-                            type: "war"
-                        ]
-                    ]
-                )
+                        nexusArtifactUploader(
+                            nexusVersion: "nexus3",
+                            protocol: "http",
+                            nexusUrl: "localhost:8081",
+                            groupId: "com.ncodeit",
+                            version: BUILD_NUMBER,
+                            repository: "hiring-app",
+                            credentialsId: "nexus-creds",
+                            artifacts: [
+                                [
+                                    artifactId: "ncodeit-hello-world",
+                                    classifier: '',
+                                    file: artifactPath,
+                                    type: "war"
+                                ]
+                            ]
+                        )
 
-                echo "Artifact Uploaded Successfully!"
+                        echo "Artifact Uploaded Successfully!"
 
-            } else {
-                error "WAR file not found!"
+                    } else {
+                        error "WAR file not found!"
+                    }
+                }
             }
         }
-    }
-}
     }
 
     post {
